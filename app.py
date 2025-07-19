@@ -1,22 +1,15 @@
+
 import streamlit as st
 import cv2
 import numpy as np
 from datetime import datetime
 import requests
 import os
-import threading
-from playsound import playsound
 
 # Konfigurasi
-WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwkR5y8iS6aSHBvtfknR1RDdkb3b1VGt-7LZW5unlIKpMENqXlh7kSv_lxpzFNEnjgBZg/exec"  # GANTI DENGAN PUNYAMU
+WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwkR5y8iS6aSHBvtfknR1RDdkb3b1VGt-7LZW5unlIKpMENqXlh7kSv_lxpzFNEnjgBZg/exec"
 MODEL_PATH = "opencv_trained_model.yml"
 CASCADE_PATH = "haarcascade_frontalface_default.xml"
-SUARA_MASUK = "ANDA SUDAH ABSEN.mp3"
-SUARA_PULANG = "ANDA SUDAH ABSEN PULANG.mp3"
-
-# Fungsi non-blocking untuk memutar suara
-def play_sound_async(path):
-    threading.Thread(target=playsound, args=(path,), daemon=True).start()
 
 # Muat model dan classifier
 face_cascade = cv2.CascadeClassifier(CASCADE_PATH)
@@ -36,8 +29,7 @@ st.title("📸 Sistem Absensi Wajah")
 start = st.button("🔴 Mulai Absensi")
 frame_placeholder = st.empty()
 
-# Riwayat absensi di sesi ini
-absen_status = {}  # {"nama": "Hadir"/"Terlambat"}
+absen_status = {}
 
 def get_status_absen():
     now = datetime.now().time()
@@ -75,31 +67,27 @@ if start:
                     st.warning(f"{nama} datang di luar jam absensi.")
                     continue
 
-                # Validasi status
                 if status in ["Hadir", "Terlambat"]:
                     if nama in absen_status:
-                        continue  # Sudah absen masuk, lewati
+                        continue
                     absen_status[nama] = status
                     try:
                         r = requests.post(WEBHOOK_URL, data={"nama": nama, "waktu": jam, "status": status})
                         if r.status_code == 200:
                             st.success(f"[{nama}] sudah absen ({status}) jam {jam}")
-                            play_sound_async(SUARA_MASUK)
                     except:
                         st.error("❌ Gagal kirim absen ke Google Sheets.")
                 elif status == "Pulang":
                     if absen_status.get(nama) == "Pulang":
-                        continue  # Sudah pulang
+                        continue
                     absen_status[nama] = "Pulang"
                     try:
                         r = requests.post(WEBHOOK_URL, data={"nama": nama, "waktu": jam, "status": status})
                         if r.status_code == 200:
                             st.success(f"[{nama}] sudah absen Pulang jam {jam}")
-                            play_sound_async(SUARA_PULANG)
                     except:
                         st.error("❌ Gagal kirim absen pulang.")
 
-                # Tampilkan nama di frame
                 cv2.putText(frame, f"{nama} ({status})", (x, y - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
